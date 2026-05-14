@@ -974,4 +974,4 @@ class _CustomerPreferencesScreenState extends State<CustomerPreferencesScreen> {
       return null;
     }
   }
-} //
+}

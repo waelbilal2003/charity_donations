@@ -35,6 +35,9 @@ dependencies:
   
   archive: ^3.4.10      # ضغط ZIP
   file_picker: ^8.0.3   # اختيار ملف الاسترجاع
+
+  flutter_launcher_icons: "^0.13.1" 
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -49,4 +52,7 @@ flutter:
 # 👇 قسم أيقونة التطبيق
 flutter_launcher_icons:
   android: true
-  
+  ios: false  # لأنك تريد للأندرويد فقط
+  image_path: "assets/logo.jpg"  # ضع مسار اللوجو هنا
+  adaptive_icon_background: "#ffffff"  # لون خلفية الأيقونة التكيفية (اختياري)
+  adaptive_icon_foreground: "assets/logo.jpg"  # الأيقونة الأمامية للأندرويد 8+
