@@ -10,6 +10,8 @@ import '../services/supplier_index_service.dart';
 import '../services/enhanced_index_service.dart';
 import '../widgets/suggestions_banner.dart';
 import '../services/app_settings_service.dart';
+import '../services/sales_storage_service.dart';
+import '../services/purchases_storage_service.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -101,6 +103,8 @@ class _BoxScreenState extends State<BoxScreen> {
   String _lastAccountName = '';
   double _grandTotalReceived = 0.0;
   double _grandTotalPaid = 0.0;
+// قائمة لتخزين نوع الصف: 'box' أو 'donations' أو 'charities' (للتمييز عن السجلات المستوردة)
+  List<String> rowSourceTypes = [];
 
   @override
   void initState() {
@@ -197,20 +201,129 @@ class _BoxScreenState extends State<BoxScreen> {
 
   Future<void> _loadGrandTotal() async {
     double totalRec = 0.0, totalPaid = 0.0;
+
+    // 1. جمع أرصدة يوميات الصندوق
     for (var dateInfo in _availableDates) {
       final doc =
           await _storageService.loadBoxDocumentForDate(dateInfo['date']!);
       if (doc != null) {
-        totalRec += double.tryParse(doc.totals['totalReceived'] ?? '0') ?? 0;
-        totalPaid += double.tryParse(doc.totals['totalPaid'] ?? '0') ?? 0;
+        for (var transaction in doc.transactions) {
+          totalRec += double.tryParse(transaction.received) ?? 0;
+          totalPaid += double.tryParse(transaction.paid) ?? 0;
+        }
       }
     }
+
+    // 2. جمع الصدقات (كانت مبيعات) من جميع التواريخ
+    final salesService = SalesStorageService();
+    final salesDates = await salesService.getAllAvailableDates();
+    for (var date in salesDates) {
+      final salesDoc = await salesService.loadDocumentForDate(date);
+      if (salesDoc != null) {
+        for (var t in salesDoc.transactions) {
+          totalRec += double.tryParse(t.paymentValue) ?? 0;
+        }
+      }
+    }
+
+    // 3. جمع الهبات (كانت مشتريات) من جميع التواريخ
+    final purchasesService = PurchasesStorageService();
+    final purchasesDates = await purchasesService.getAllAvailableDates();
+    for (var date in purchasesDates) {
+      final purchaseDoc = await purchasesService.loadDocumentForDate(date);
+      if (purchaseDoc != null) {
+        for (var t in purchaseDoc.transactions) {
+          totalPaid += double.tryParse(t.paymentValue) ?? 0;
+        }
+      }
+    }
+
     if (mounted) {
       setState(() {
         _grandTotalReceived = totalRec;
         _grandTotalPaid = totalPaid;
       });
     }
+  }
+
+  // جلب سجلات الهبات والصدقات النقدية لليوم الحالي وإضافتها للجدول
+  Future<void> _loadDonationsAndCharities() async {
+    final salesService = SalesStorageService();
+    final purchasesService = PurchasesStorageService();
+
+    final salesDoc =
+        await salesService.loadDocumentForDate(widget.selectedDate);
+    final purchasesDoc =
+        await purchasesService.loadDocumentForDate(widget.selectedDate);
+
+    if (!mounted) return;
+
+    setState(() {
+      // إزالة الصفوف القديمة من الهبات والصدقات
+      for (int i = rowControllers.length - 1; i >= 0; i--) {
+        if (i < rowSourceTypes.length &&
+            (rowSourceTypes[i] == 'charities' ||
+                rowSourceTypes[i] == 'donations')) {
+          for (var c in rowControllers[i]) c.dispose();
+          for (var n in rowFocusNodes[i]) n.dispose();
+          rowControllers.removeAt(i);
+          rowFocusNodes.removeAt(i);
+          accountTypeValues.removeAt(i);
+          sellerNames.removeAt(i);
+          rowSourceTypes.removeAt(i);
+        }
+      }
+
+      // ── الصدقات (كانت مبيعات) ──
+      if (salesDoc != null) {
+        for (var t in salesDoc.transactions) {
+          final String accountName =
+              t.workerName.trim().isNotEmpty ? t.workerName.trim() : 'صدقات';
+
+          // [0]=رقم تسلسلي، [1]=مقبوض، [2]=مدفوع، [3]=الحساب، [4]=ملاحظات
+          final controllers = [
+            TextEditingController(text: (rowControllers.length + 1).toString()),
+            TextEditingController(text: t.paymentValue), // مقبوض
+            TextEditingController(text: ''), // مدفوع
+            TextEditingController(text: accountName), // الحساب
+            TextEditingController(
+                text: t.notes.isNotEmpty ? t.notes : 'صدقات'), // ملاحظات
+          ];
+          final focusNodes = List.generate(5, (_) => FocusNode());
+          rowControllers.add(controllers);
+          rowFocusNodes.add(focusNodes);
+          accountTypeValues.add('فقير');
+          sellerNames.add('');
+          rowSourceTypes.add('charities');
+        }
+      }
+
+      // ── الهبات (كانت مشتريات) ──
+      if (purchasesDoc != null) {
+        for (var t in purchasesDoc.transactions) {
+          final String accountName =
+              t.workerName.trim().isNotEmpty ? t.workerName.trim() : 'هبات';
+
+          // [0]=رقم تسلسلي، [1]=مقبوض، [2]=مدفوع، [3]=الحساب، [4]=ملاحظات
+          final controllers = [
+            TextEditingController(text: (rowControllers.length + 1).toString()),
+            TextEditingController(text: ''), // مقبوض
+            TextEditingController(text: t.paymentValue), // مدفوع
+            TextEditingController(text: accountName), // الحساب
+            TextEditingController(
+                text: t.notes.isNotEmpty ? t.notes : 'هبات'), // ملاحظات
+          ];
+          final focusNodes = List.generate(5, (_) => FocusNode());
+          rowControllers.add(controllers);
+          rowFocusNodes.add(focusNodes);
+          accountTypeValues.add('واهب');
+          sellerNames.add('');
+          rowSourceTypes.add('donations');
+        }
+      }
+
+      _calculateAllTotals();
+    });
   }
 
   // تحميل اليومية إذا كانت موجودة، أو إنشاء جديدة
@@ -225,6 +338,9 @@ class _BoxScreenState extends State<BoxScreen> {
       // إنشاء يومية جديدة
       _createNewJournal();
     }
+
+    // بعد التحميل أو الإنشاء، نجلب سجلات الهبات والصدقات
+    await _loadDonationsAndCharities();
   }
 
   void _resetTotalValues() {
@@ -238,6 +354,7 @@ class _BoxScreenState extends State<BoxScreen> {
       rowFocusNodes.clear();
       accountTypeValues.clear();
       sellerNames.clear();
+      rowSourceTypes.clear();
       _resetTotalValues();
       _hasUnsavedChanges = false;
       _addNewRow();
@@ -279,6 +396,7 @@ class _BoxScreenState extends State<BoxScreen> {
 
       // تخزين اسم البائع للصف الجديد
       sellerNames.add(widget.sellerName);
+      rowSourceTypes.add('box');
 
       rowControllers.add(newControllers);
       rowFocusNodes.add(newFocusNodes);
@@ -421,6 +539,7 @@ class _BoxScreenState extends State<BoxScreen> {
       rowFocusNodes.clear();
       accountTypeValues.clear();
       sellerNames.clear();
+      rowSourceTypes.clear();
 
       // تحميل السجلات من الوثيقة
       for (int i = 0; i < document.transactions.length; i++) {
@@ -452,6 +571,7 @@ class _BoxScreenState extends State<BoxScreen> {
         rowControllers.add(newControllers);
         rowFocusNodes.add(newFocusNodes);
         accountTypeValues.add(transaction.accountType);
+        rowSourceTypes.add('box');
       }
 
       // تحميل المجاميع
@@ -515,19 +635,31 @@ class _BoxScreenState extends State<BoxScreen> {
 
     for (int i = 0; i < rowControllers.length; i++) {
       final bool isOwnedByCurrentSeller = sellerNames[i] == widget.sellerName;
+      final String sourceType =
+          (i < rowSourceTypes.length) ? rowSourceTypes[i] : 'box';
+      final bool isReadOnly =
+          sourceType == 'charities' || sourceType == 'donations';
+
+      Color? rowColor;
+      if (sourceType == 'charities') {
+        rowColor = Colors.green[50]; // أخضر فاتح للصدقات
+      } else if (sourceType == 'donations') {
+        rowColor = Colors.orange[50]; // برتقالي فاتح للهبات
+      }
 
       contentRows.add(
         TableRow(
+          decoration: rowColor != null ? BoxDecoration(color: rowColor) : null,
           children: [
             _buildTableCell(rowControllers[i][0], rowFocusNodes[i][0], i, 0,
-                isOwnedByCurrentSeller),
+                !isReadOnly && isOwnedByCurrentSeller),
             _buildReceivedCell(rowControllers[i][1], rowFocusNodes[i][1], i, 1,
-                isOwnedByCurrentSeller),
+                !isReadOnly && isOwnedByCurrentSeller),
             _buildPaidCell(rowControllers[i][2], rowFocusNodes[i][2], i, 2,
-                isOwnedByCurrentSeller),
-            _buildAccountCell(i, 3, isOwnedByCurrentSeller),
+                !isReadOnly && isOwnedByCurrentSeller),
+            _buildAccountCell(i, 3, !isReadOnly && isOwnedByCurrentSeller),
             _buildNotesCell(rowControllers[i][4], rowFocusNodes[i][4], i, 4,
-                isOwnedByCurrentSeller),
+                !isReadOnly && isOwnedByCurrentSeller),
           ],
         ),
       );
@@ -1337,11 +1469,24 @@ class _BoxScreenState extends State<BoxScreen> {
       {bool silent = false, bool reloadAfterSave = true}) async {
     if (_isSaving) return;
     if (!mounted) return;
-    setState(() => _isSaving = true);
 
-    // 1. تجميع السجلات الحالية من الواجهة
+    // ✅ الحل: تغليف setState بفحص mounted إضافي مع try-catch
+    try {
+      setState(() => _isSaving = true);
+    } catch (e) {
+      // إذا فشل setState لأن الويدجت في حالة defunct، نخرج من الدالة
+      debugPrint('Cannot setState, widget is defunct: $e');
+      return;
+    }
+
+    // 1. تجميع السجلات الحالية من الواجهة (تخطي صفوف الهبات والصدقات)
     final List<BoxTransaction> allTransFromUI = [];
     for (int i = 0; i < rowControllers.length; i++) {
+      // تخطي صفوف الهبات والصدقات - هي للقراءة فقط ومصدرها يوميات أخرى
+      final String sourceType =
+          (i < rowSourceTypes.length) ? rowSourceTypes[i] : 'box';
+      if (sourceType == 'charities' || sourceType == 'donations') continue;
+
       final controllers = rowControllers[i];
       if (controllers[1].text.isNotEmpty ||
           controllers[2].text.isNotEmpty ||
@@ -1362,101 +1507,129 @@ class _BoxScreenState extends State<BoxScreen> {
     // 2. منطق تحديث الأرصدة الجديد (الإلغاء ثم التطبيق)
     Map<String, double> customerBalanceChanges = {};
     Map<String, double> supplierBalanceChanges = {};
-    final existingDoc =
-        await _storageService.loadBoxDocumentForDate(widget.selectedDate);
 
-    // الخطوة أ: إلغاء أثر جميع معاملات الصندوق القديمة لهذا البائع
-    if (existingDoc != null) {
-      for (var oldTrans in existingDoc.transactions) {
-        if (oldTrans.sellerName == widget.sellerName &&
-            oldTrans.accountName.isNotEmpty) {
-          double oldReceived = double.tryParse(oldTrans.received) ?? 0;
-          double oldPaid = double.tryParse(oldTrans.paid) ?? 0;
+    try {
+      final existingDoc =
+          await _storageService.loadBoxDocumentForDate(widget.selectedDate);
 
-          if (oldTrans.accountType == 'فقير') {
-            // معادلة الفقير: الرصيد يتأثر بـ (المدفوع له - المقبوض منه)
-            // للإلغاء، نطرح هذا التأثير
-            double effect = oldPaid - oldReceived;
-            customerBalanceChanges[oldTrans.accountName] =
-                (customerBalanceChanges[oldTrans.accountName] ?? 0) - effect;
-          } else if (oldTrans.accountType == 'واهب') {
-            // معادلة الواهب: الرصيد يتأثر بـ (المقبوض منه - المدفوع له)
-            // للإلغاء، نطرح هذا التأثير
-            double effect = oldReceived - oldPaid;
-            supplierBalanceChanges[oldTrans.accountName] =
-                (supplierBalanceChanges[oldTrans.accountName] ?? 0) - effect;
+      // الخطوة أ: إلغاء أثر جميع معاملات الصندوق القديمة لهذا البائع
+      if (existingDoc != null) {
+        for (var oldTrans in existingDoc.transactions) {
+          if (oldTrans.sellerName == widget.sellerName &&
+              oldTrans.accountName.isNotEmpty) {
+            double oldReceived = double.tryParse(oldTrans.received) ?? 0;
+            double oldPaid = double.tryParse(oldTrans.paid) ?? 0;
+
+            if (oldTrans.accountType == 'فقير') {
+              double effect = oldPaid - oldReceived;
+              customerBalanceChanges[oldTrans.accountName] =
+                  (customerBalanceChanges[oldTrans.accountName] ?? 0) - effect;
+            } else if (oldTrans.accountType == 'واهب') {
+              double effect = oldReceived - oldPaid;
+              supplierBalanceChanges[oldTrans.accountName] =
+                  (supplierBalanceChanges[oldTrans.accountName] ?? 0) - effect;
+            }
           }
         }
       }
-    }
 
-    // الخطوة ب: تطبيق أثر جميع معاملات الصندوق الجديدة من الواجهة
-    for (var newTrans in allTransFromUI) {
-      if (newTrans.sellerName == widget.sellerName &&
-          newTrans.accountName.isNotEmpty) {
-        double newReceived = double.tryParse(newTrans.received) ?? 0;
-        double newPaid = double.tryParse(newTrans.paid) ?? 0;
+      // الخطوة ب: تطبيق أثر جميع معاملات الصندوق الجديدة من الواجهة
+      for (var newTrans in allTransFromUI) {
+        if (newTrans.sellerName == widget.sellerName &&
+            newTrans.accountName.isNotEmpty) {
+          double newReceived = double.tryParse(newTrans.received) ?? 0;
+          double newPaid = double.tryParse(newTrans.paid) ?? 0;
 
-        if (newTrans.accountType == 'فقير') {
-          double effect = newPaid - newReceived;
-          customerBalanceChanges[newTrans.accountName] =
-              (customerBalanceChanges[newTrans.accountName] ?? 0) + effect;
-        } else if (newTrans.accountType == 'واهب') {
-          double effect = newReceived - newPaid;
-          supplierBalanceChanges[newTrans.accountName] =
-              (supplierBalanceChanges[newTrans.accountName] ?? 0) + effect;
-        }
-      }
-    }
-
-    // 3. بناء الوثيقة النهائية للحفظ
-    double tReceived = allTransFromUI.fold(
-        0, (sum, t) => sum + (double.tryParse(t.received) ?? 0));
-    double tPaid = allTransFromUI.fold(
-        0, (sum, t) => sum + (double.tryParse(t.paid) ?? 0));
-
-    final documentToSave = BoxDocument(
-      recordNumber: serialNumber,
-      date: widget.selectedDate,
-      sellerName: "Multiple Sellers", // الاسم العام للملف
-      storeName: widget.storeName,
-      dayName: dayName,
-      transactions: allTransFromUI,
-      totals: {
-        'totalReceived': tReceived.toStringAsFixed(2),
-        'totalPaid': tPaid.toStringAsFixed(2),
-      },
-    );
-
-    // 4. الحفظ في الملف وتحديث الأرصدة
-    final success = await _storageService.saveBoxDocument(documentToSave);
-
-    if (success) {
-      // تطبيق التغييرات الصافية على أرصدة الزبائن والواهبين
-      for (var entry in customerBalanceChanges.entries) {
-        if (entry.value != 0) {
-          await _customerIndexService.updateCustomerBalance(
-              entry.key, entry.value);
-        }
-      }
-      for (var entry in supplierBalanceChanges.entries) {
-        if (entry.value != 0) {
-          await _supplierIndexService.updateSupplierBalance(
-              entry.key, entry.value);
+          if (newTrans.accountType == 'فقير') {
+            double effect = newPaid - newReceived;
+            customerBalanceChanges[newTrans.accountName] =
+                (customerBalanceChanges[newTrans.accountName] ?? 0) + effect;
+          } else if (newTrans.accountType == 'واهب') {
+            double effect = newReceived - newPaid;
+            supplierBalanceChanges[newTrans.accountName] =
+                (supplierBalanceChanges[newTrans.accountName] ?? 0) + effect;
+          }
         }
       }
 
-      setState(() => _hasUnsavedChanges = false);
-      if (reloadAfterSave) {
-        await _loadOrCreateJournal();
-      }
-    }
+      // 3. بناء الوثيقة النهائية للحفظ
+      double tReceived = allTransFromUI.fold(
+          0, (sum, t) => sum + (double.tryParse(t.received) ?? 0));
+      double tPaid = allTransFromUI.fold(
+          0, (sum, t) => sum + (double.tryParse(t.paid) ?? 0));
 
-    setState(() => _isSaving = false);
-    if (!silent && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(success ? 'تم الحفظ بنجاح' : 'فشل الحفظ'),
-          backgroundColor: success ? Colors.green : Colors.red));
+      final documentToSave = BoxDocument(
+        recordNumber: serialNumber,
+        date: widget.selectedDate,
+        sellerName: "Multiple Sellers",
+        storeName: widget.storeName,
+        dayName: dayName,
+        transactions: allTransFromUI,
+        totals: {
+          'totalReceived': tReceived.toStringAsFixed(2),
+          'totalPaid': tPaid.toStringAsFixed(2),
+        },
+      );
+
+      // 4. الحفظ في الملف وتحديث الأرصدة
+      final success = await _storageService.saveBoxDocument(documentToSave);
+
+      // ✅ فحص mounted قبل أي تحديث للواجهة
+      if (!mounted) return;
+
+      if (success) {
+        // تطبيق التغييرات الصافية على أرصدة الزبائن والواهبين
+        for (var entry in customerBalanceChanges.entries) {
+          if (entry.value != 0) {
+            await _customerIndexService.updateCustomerBalance(
+                entry.key, entry.value);
+          }
+        }
+        for (var entry in supplierBalanceChanges.entries) {
+          if (entry.value != 0) {
+            await _supplierIndexService.updateSupplierBalance(
+                entry.key, entry.value);
+          }
+        }
+
+        // ✅ تغليف setState بفحص إضافي
+        if (mounted) {
+          try {
+            setState(() => _hasUnsavedChanges = false);
+          } catch (e) {
+            debugPrint('Cannot update UI after save: $e');
+            return;
+          }
+        }
+
+        if (reloadAfterSave) {
+          await _loadOrCreateJournal();
+        }
+      }
+
+      // ✅ تحديث _isSaving مع فحص mounted
+      if (mounted) {
+        try {
+          setState(() => _isSaving = false);
+        } catch (e) {
+          debugPrint('Cannot reset saving state: $e');
+          return;
+        }
+      }
+
+      if (!silent && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(success ? 'تم الحفظ بنجاح' : 'فشل الحفظ'),
+            backgroundColor: success ? Colors.green : Colors.red));
+      }
+    } catch (e) {
+      debugPrint('Error in _saveCurrentRecord: $e');
+      // ✅ التأكد من إعادة تعيين _isSaving حتى في حالة الخطأ
+      if (mounted) {
+        try {
+          setState(() => _isSaving = false);
+        } catch (_) {}
+      }
     }
   }
 

@@ -22,14 +22,10 @@ class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
       PurchasesStorageService();
   final BoxStorageService _boxStorageService = BoxStorageService();
 
-  double _salesTotal = 0;
-  double _purchasesTotal = 0;
-  double _boxReceived = 0;
-  double _expensesTotal = 0;
-  double _customersBalance = 0;
-  double _suppliersBalance = 0;
-  double _openingBoxBalance = 0; // رصيد الصندوق الابتدائي
-  double _openingCapital = 0; // رأس المال الابتدائي
+  double _salesTotal = 0; // مجموع الصدقات
+  double _purchasesTotal = 0; // مجموع الهبات
+  double _expensesTotal = 0; // مجموع المصروف
+  double _boxBalance = 0; // رصيد الصندوق
   bool _isLoading = true;
 
   @override
@@ -40,15 +36,15 @@ class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
 
   Future<void> _loadData() async {
     try {
-      // ── المجموع الكلي للصدقات من جميع الأيام ──
       double sales = 0;
       double purchases = 0;
-      double boxReceived = 0, boxPaid = 0;
       double expensesTotalPaid = 0, expensesTotalReceived = 0;
+      double boxReceived = 0, boxPaid = 0;
 
-      // جلب بيانات الصندوق + المصروف
+      // جلب بيانات الصندوق والمصروف
       final allBoxDates =
           await _boxStorageService.getAvailableDatesWithNumbers();
+
       for (var dateInfo in allBoxDates) {
         final doc =
             await _boxStorageService.loadBoxDocumentForDate(dateInfo['date']!);
@@ -56,6 +52,8 @@ class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
           boxReceived +=
               double.tryParse(doc.totals['totalReceived'] ?? '0') ?? 0;
           boxPaid += double.tryParse(doc.totals['totalPaid'] ?? '0') ?? 0;
+
+          // ✅ تصحيح: جلب المصروف من جميع المعاملات وليس فقط نوع 'مصروف'
           for (var trans in doc.transactions) {
             if (trans.accountType == 'مصروف') {
               expensesTotalPaid += double.tryParse(trans.paid) ?? 0;
@@ -64,10 +62,15 @@ class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
           }
         }
       }
-      // المصروف الكلي = مجموع المدفوع الكلي - مجموع المقبوض الكلي لجميع الأيام
+
+      // المصروف الكلي = مجموع المدفوع للمصروفات - مجموع المقبوض من المصروفات
       final double expenses = expensesTotalPaid - expensesTotalReceived;
 
-      // جلب الصدقات الكلية عبر SalesStorageService
+      // طباعة للتحقق من القيم
+      debugPrint(
+          'Expenses Paid: $expensesTotalPaid, Received: $expensesTotalReceived, Total: $expenses');
+
+      // جلب الصدقات
       final salesAllDates = await _salesStorageService.getAllAvailableDates();
       for (var date in salesAllDates) {
         final doc = await _salesStorageService.loadDocumentForDate(date);
@@ -76,7 +79,7 @@ class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
         }
       }
 
-      // جلب الهبات الكلية عبر PurchasesStorageService
+      // جلب الهبات
       final purchasesAllDates =
           await _purchasesStorageService.getAllAvailableDates();
       for (var date in purchasesAllDates) {
@@ -86,193 +89,34 @@ class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
         }
       }
 
-      final double boxBalance = boxReceived - boxPaid;
+      // ✅ طباعة جميع القيم للتحقق
+      debugPrint('Sales: $sales, Purchases: $purchases, Expenses: $expenses');
+      debugPrint('Box Received: $boxReceived, Box Paid: $boxPaid');
 
-      // جلب أرصدة البداية من ملف الإعدادات
-      final settings = AppSettingsService();
-      final openingBox = double.tryParse(
-              await settings.getString('opening_box_balance') ?? '0') ??
-          0;
-      final openingCap =
-          double.tryParse(await settings.getString('opening_capital') ?? '0') ??
-              0;
+      // حساب رصيد الصندوق = الهبات - الصدقات - المصروف
+      final double boxBalance = purchases - sales - expenses;
 
-      final customers = await _customerIndexService.getAllCustomersWithData();
-      final suppliers = await _supplierIndexService.getAllSuppliersWithData();
-      final custBalance = customers.values.fold(0.0, (s, c) => s + c.balance);
-      final suppBalance = suppliers.values.fold(0.0, (s, c) => s + c.balance);
+      debugPrint('Box Balance: $boxBalance');
 
       if (mounted) {
         setState(() {
           _salesTotal = sales;
           _purchasesTotal = purchases;
-          _boxReceived = boxBalance;
           _expensesTotal = expenses;
-          _customersBalance = custBalance;
-          _suppliersBalance = suppBalance;
-          _openingBoxBalance = openingBox;
-          _openingCapital = openingCap;
+          _boxBalance = boxBalance;
           _isLoading = false;
         });
       }
     } catch (e) {
-      // في حال أي خطأ (بما فيه بيئة الويب) أوقف التحميل
+      debugPrint('Error loading data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
   }
 
-  // ── دالة مساعدة: خلية نصية وقيمة رقمية تحتها ──
-  Widget _cell(String label, String value,
-      {Color bgColor = Colors.white,
-      Color textColor = Colors.black87,
-      bool isBold = false,
-      Color? valueColor}) {
-    return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          color: bgColor,
-          border: Border.all(color: Colors.grey.shade300, width: 0.5),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                color: textColor,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: valueColor ?? textColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── صف من خليتين ──
-  Widget _twoColRow(Widget right, Widget left) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [right, left],
-      ),
-    );
-  }
-
-  // ── رأس القسم ──
-  Widget _sectionHeader(String title, Color color) {
-    return Container(
-      width: double.infinity,
-      color: color,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        title,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-      ),
-    );
-  }
-
-  // ── رأس عمودي (يمين / يسار) ──
-  /*
-  Widget _colHeader(String title, Color color) {
-    return Expanded(
-      child: Container(
-        color: color,
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Text(
-          title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-        ),
-      ),
-    );
-  }
-
- */
-
-  // ── صف إجمالي ──
-  Widget _totalRow(String rightLabel, String rightVal, String leftLabel,
-      String leftVal, Color color) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _cell(rightLabel, rightVal,
-              bgColor: color.withOpacity(0.15),
-              textColor: color,
-              isBold: true,
-              valueColor: color),
-          _cell(leftLabel, leftVal,
-              bgColor: color.withOpacity(0.15),
-              textColor: color,
-              isBold: true,
-              valueColor: color),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    // ── المرحلة الأولى: حساب المتاجرة ──
-    // الصدقات - الهبات = x
-    final double tradingX = _salesTotal - _purchasesTotal;
-    final bool isTradingProfit = tradingX > 0;
-    final bool isTradingEqual = tradingX == 0;
-
-    // ── المرحلة الثانية: حساب الأرباح والخسائر ──
-    // يمين: المصروف + (خسارة تجارية إن وجدت)
-    // يسار: ربح تجاري إن وجد
-    // صافي = يمين - يسار
-    double plRight = _expensesTotal +
-        (isTradingProfit || isTradingEqual ? 0 : tradingX.abs());
-    double plLeft = isTradingProfit ? tradingX : 0;
-    double netResult = plLeft - plRight; // موجب = ربح، سالب = خسارة
-    final bool isNetProfit = netResult > 0;
-    final bool isNetEqual = netResult == 0;
-
-    // ── المرحلة الثالثة: الميزانية ──
-    // رصيد الصندوق الفعلي = رصيد الصندوق الابتدائي + صافي حركة الصندوق
-    final double totalBoxBalance = _openingBoxBalance + _boxReceived;
-    // رأس المال الفعلي = رأس المال الابتدائي + رأس المال المحسوب
-    // يمين (أصول): الفقراء + الصندوق + صافي خسارة إن وجدت
-    // يسار (خصوم): الموردون + رأس المال + صافي ربح إن وجد
-    // رأس المال = يمين الكلي - موردون - صافي ربح
-    double balanceRight = _customersBalance +
-        totalBoxBalance +
-        (isNetProfit || isNetEqual ? 0 : netResult.abs());
-    double capital = _openingCapital +
-        (balanceRight -
-            _suppliersBalance -
-            (isNetProfit ? netResult : 0) -
-            _openingCapital);
-    // تبسيط: capital = balanceRight - suppliersBalance - netProfit
-    capital = balanceRight - _suppliersBalance - (isNetProfit ? netResult : 0);
-    double balanceLeft =
-        _suppliersBalance + capital + (isNetProfit ? netResult : 0);
-
-    final Color tradingColor = Colors.blueGrey.shade700;
-    final Color plColor = Colors.purple.shade700;
-    final Color balColor = const Color.fromARGB(255, 37, 18, 105);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('تفصيلات الحساب'),
@@ -285,164 +129,133 @@ class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
           : Directionality(
               textDirection: TextDirection.rtl,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(5),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ════════════════════════════════
-                    // المرحلة الأولى: حساب المتاجرة
-                    // ════════════════════════════════
-                    _sectionHeader('حساب المتاجرة', tradingColor),
-
-                    _twoColRow(
-                      _cell('الهبات', _purchasesTotal.toStringAsFixed(2)),
-                      _cell('الصدقات', _salesTotal.toStringAsFixed(2)),
-                    ),
-                    // سطر الربح أو الخسارة التجارية
-                    if (!isTradingEqual)
-                      _twoColRow(
-                        isTradingProfit
-                            ? _cell('ربح المتاجرة', tradingX.toStringAsFixed(2),
-                                bgColor: Colors.green.shade50,
-                                textColor: Colors.green.shade800,
-                                isBold: true,
-                                valueColor: Colors.green.shade800)
-                            : _cell('', ''),
-                        isTradingProfit
-                            ? _cell('', '')
-                            : _cell('خسارة المتاجرة',
-                                tradingX.abs().toStringAsFixed(2),
-                                bgColor: Colors.red.shade50,
-                                textColor: Colors.red.shade800,
-                                isBold: true,
-                                valueColor: Colors.red.shade800),
-                      ),
-                    // صف المجاميع - كلا الطرفين يجب أن يتساويا
-                    _totalRow(
-                      'المجموع',
-                      // يمين: إذا ربح = هبات + ربح = صدقات، إذا خسارة = هبات
-                      isTradingProfit
-                          ? _salesTotal.toStringAsFixed(2)
-                          : _purchasesTotal.toStringAsFixed(2),
-                      'المجموع',
-                      // يسار: إذا ربح = صدقات، إذا خسارة = صدقات + خسارة = هبات
-                      isTradingProfit
-                          ? _salesTotal.toStringAsFixed(2)
-                          : _purchasesTotal.toStringAsFixed(2),
-                      tradingColor,
-                    ),
-                    const SizedBox(height: 7),
-
-                    // ════════════════════════════════
-                    // المرحلة الثانية: حساب الأرباح والخسائر
-                    // ════════════════════════════════
-                    _sectionHeader('حساب الأرباح والخسائر', plColor),
-
-                    // المصروف دائماً في اليمين (مدين)
-                    _twoColRow(
-                      _cell('المصروف', _expensesTotal.toStringAsFixed(2)),
-                      // الربح التجاري يُكتب في اليسار (دائن) إن وجد
-                      isTradingProfit
-                          ? _cell('الربح التجاري', tradingX.toStringAsFixed(2))
-                          : _cell('', ''),
-                    ),
-                    // الخسارة التجارية تُكتب في اليمين (مدين) إن وجدت
-                    if (!isTradingProfit && !isTradingEqual)
-                      _twoColRow(
-                        _cell('الخسارة التجارية',
-                            tradingX.abs().toStringAsFixed(2)),
-                        _cell('', ''),
-                      ),
-                    // صافي الربح في اليمين (مدين) / صافي الخسارة في اليسار (دائن)
-                    if (!isNetEqual)
-                      _twoColRow(
-                        isNetProfit
-                            ? _cell('صافي الربح', netResult.toStringAsFixed(2),
-                                bgColor: Colors.green.shade50,
-                                textColor: Colors.green.shade800,
-                                isBold: true,
-                                valueColor: Colors.green.shade800)
-                            : _cell('', ''),
-                        isNetProfit
-                            ? _cell('', '')
-                            : _cell('صافي الخسارة',
-                                netResult.abs().toStringAsFixed(2),
-                                bgColor: Colors.red.shade50,
-                                textColor: Colors.red.shade800,
-                                isBold: true,
-                                valueColor: Colors.red.shade800),
-                      ),
-                    _totalRow(
-                      'المجموع',
-                      // يمين: مصروف + خسارة تجارية + صافي ربح (إن وجد) = ربح تجاري
-                      (isNetProfit ? plLeft : plRight).toStringAsFixed(2),
-                      'المجموع',
-                      // يسار: ربح تجاري (إن وجد) أو مصروف + خسارة تجارية + صافي خسارة
-                      (isNetProfit ? plLeft : plRight).toStringAsFixed(2),
-                      plColor,
-                    ),
-                    const SizedBox(height: 7),
-
-                    // ════════════════════════════════
-                    // المرحلة الثالثة: الميزانية الختامية
-                    // ════════════════════════════════
-                    _sectionHeader('الميزانية الختامية', balColor),
-
-                    // الفقراء (يمين) / الموردون (يسار)
-                    _twoColRow(
-                      _cell('الفقراء', _customersBalance.toStringAsFixed(2)),
-                      _cell('الواهبين', _suppliersBalance.toStringAsFixed(2)),
-                    ),
-                    // الصندوق (يمين) / رأس المال (يسار)
-                    _twoColRow(
-                      _cell('الصندوق', totalBoxBalance.toStringAsFixed(2)),
-                      _cell('رأس المال', capital.toStringAsFixed(2)),
-                    ),
-                    // صافي الخسارة في اليمين إن وجدت / صافي الربح في اليسار إن وجد
-                    if (!isNetEqual)
-                      _twoColRow(
-                        !isNetProfit
-                            ? _cell('صافي الخسارة',
-                                netResult.abs().toStringAsFixed(2),
-                                bgColor: Colors.red.shade50,
-                                textColor: Colors.red.shade800,
-                                isBold: true,
-                                valueColor: Colors.red.shade800)
-                            : _cell('', ''),
-                        isNetProfit
-                            ? _cell('صافي الربح', netResult.toStringAsFixed(2),
-                                bgColor: Colors.green.shade50,
-                                textColor: Colors.green.shade800,
-                                isBold: true,
-                                valueColor: Colors.green.shade800)
-                            : _cell('', ''),
-                      ),
-                    _totalRow(
-                      'المجموع',
-                      balanceRight.toStringAsFixed(2),
-                      'المجموع',
-                      balanceLeft.toStringAsFixed(2),
-                      balColor,
-                    ),
-                    // الفرق إن وجد
-                    if ((balanceRight - balanceLeft).abs() > 0.01)
-                      Container(
-                        color: Colors.orange.shade100,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 6, horizontal: 8),
-                        child: Text(
-                          'الفرق: ${(balanceRight - balanceLeft).toStringAsFixed(2)}',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              color: Colors.orange.shade900,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13),
+                    // رأس القسم
+                    Container(
+                      width: double.infinity,
+                      color: Colors.indigo[700],
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: const Text(
+                        'حساب الصندوق',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // بطاقة المعلومات
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          children: [
+                            _buildInfoRow(
+                              'مجموع الهبات',
+                              _purchasesTotal.toStringAsFixed(2),
+                              Colors.green.shade700,
+                              Icons.volunteer_activism,
+                            ),
+                            const Divider(height: 20),
+                            _buildInfoRow(
+                              'مجموع الصدقات',
+                              _salesTotal.toStringAsFixed(2),
+                              Colors.orange.shade700,
+                              Icons.card_giftcard,
+                            ),
+                            const Divider(height: 20),
+                            _buildInfoRow(
+                              'المصروف',
+                              _expensesTotal.toStringAsFixed(2),
+                              Colors.red.shade700,
+                              Icons.money_off,
+                            ),
+                            const Divider(height: 20),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: _boxBalance >= 0
+                                    ? Colors.green.shade50
+                                    : Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _boxBalance >= 0
+                                      ? Colors.green.shade300
+                                      : Colors.red.shade300,
+                                  width: 2,
+                                ),
+                              ),
+                              child: _buildInfoRow(
+                                'رصيد الصندوق',
+                                _boxBalance.toStringAsFixed(2),
+                                _boxBalance >= 0
+                                    ? Colors.green.shade800
+                                    : Colors.red.shade800,
+                                Icons.account_balance_wallet,
+                                isBold: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // عرض المعادلة
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildInfoRow(
+    String label,
+    String value,
+    Color color,
+    IconData icon, {
+    bool isBold = false,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: Colors.grey.shade800,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }
