@@ -392,7 +392,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        'المشتريات - ${widget.selectedDate}',
+                        'الهبات - ${widget.selectedDate}',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
@@ -559,8 +559,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
           decoration: BoxDecoration(color: Colors.grey[200]),
           children: [
             TableComponents.buildTableHeaderCell('ت'),
-            TableComponents.buildTableHeaderCell('قيمة الدين'),
-            TableComponents.buildTableHeaderCell('اسم المورد'),
+            TableComponents.buildTableHeaderCell('قيمة الهبة'),
+            TableComponents.buildTableHeaderCell('اسم الواهب'),
             TableComponents.buildTableHeaderCell('البيان'),
           ],
         ),

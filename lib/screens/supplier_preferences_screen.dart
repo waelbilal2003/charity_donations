@@ -74,11 +74,11 @@ class _SupplierPreferencesScreenState extends State<SupplierPreferencesScreen> {
         }
       }
 
-      // ② مدفوع من يومية الصندوق (نوع الحساب = مورد واسمه مطابق)
+      // ② مدفوع من يومية الصندوق (نوع الحساب = واهب واسمه مطابق)
       final boxDoc = await _boxService.loadBoxDocumentForDate(dateString);
       if (boxDoc != null) {
         for (var t in boxDoc.transactions) {
-          if (t.accountType == 'مورد' &&
+          if (t.accountType == 'واهب' &&
               t.accountName == widget.supplier.name) {
             // المدفوع
             if (t.paid.isNotEmpty &&
@@ -425,7 +425,7 @@ class _SupplierPreferencesScreenState extends State<SupplierPreferencesScreen> {
 
       final displayList = List<Map<String, String>>.from(_visibleTransactions);
 
-      // المورد: مشتريات + صندوق مقبوض = يُجمع | صندوق مدفوع = يُطرح
+      // الواهب: مشتريات + صندوق مقبوض = يُجمع | صندوق مدفوع = يُطرح
       final double totalTransactions = displayList.fold<double>(0.0, (sum, p) {
         final val = double.tryParse(p['value'] ?? '0') ?? 0;
         if (p['source'] == 'box_paid') return sum - val;
@@ -464,7 +464,7 @@ class _SupplierPreferencesScreenState extends State<SupplierPreferencesScreen> {
                   children: [
                     pw.Center(
                       child: pw.Text(
-                        'تفاصيل المورد: ${widget.supplier.name}',
+                        'تفاصيل الواهب: ${widget.supplier.name}',
                         style: pw.TextStyle(
                             fontSize: 16, fontWeight: pw.FontWeight.bold),
                       ),
@@ -591,12 +591,12 @@ class _SupplierPreferencesScreenState extends State<SupplierPreferencesScreen> {
       final output = await getTemporaryDirectory();
       final safeDate = widget.selectedDate.replaceAll('/', '-');
       final safeName = widget.supplier.name.replaceAll(' ', '_');
-      final file = File("${output.path}/تفاصيل_مورد_${safeName}_$safeDate.pdf");
+      final file = File("${output.path}/تفاصيل_واهب_${safeName}_$safeDate.pdf");
 
       await file.writeAsBytes(await pdf.save());
       await Share.shareXFiles([XFile(file.path)],
           text:
-              'تفاصيل المورد ${widget.supplier.name} - ${widget.selectedDate}');
+              'تفاصيل الواهب ${widget.supplier.name} - ${widget.selectedDate}');
     } catch (e) {
       debugPrint("PDF Error: $e");
       if (mounted) {
@@ -650,7 +650,7 @@ class _SupplierPreferencesScreenState extends State<SupplierPreferencesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // المورد: مشتريات + صندوق مقبوض = يُجمع | صندوق مدفوع = يُطرح
+    // الواهب: مشتريات + صندوق مقبوض = يُجمع | صندوق مدفوع = يُطرح
     final double totalVisible =
         _visibleTransactions.fold<double>(0.0, (sum, p) {
       final val = double.tryParse(p['value'] ?? '0') ?? 0;

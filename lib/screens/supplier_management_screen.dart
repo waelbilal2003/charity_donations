@@ -99,7 +99,7 @@ class _SupplierManagementScreenState extends State<SupplierManagementScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            'لا يمكن حذف مورد رصيده غير صفر (${supplier.balance.toStringAsFixed(2)})'),
+            'لا يمكن حذف واهب رصيده غير صفر (${supplier.balance.toStringAsFixed(2)})'),
         backgroundColor: Colors.orange,
       ));
       return;
@@ -109,7 +109,7 @@ class _SupplierManagementScreenState extends State<SupplierManagementScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد الحذف'),
-        content: Text('هل أنت متأكد من حذف المورد "${supplier.name}"؟'),
+        content: Text('هل أنت متأكد من حذف الواهب "${supplier.name}"؟'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -145,7 +145,7 @@ class _SupplierManagementScreenState extends State<SupplierManagementScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('أسماء الموردين وأرصدتهم'),
+        title: const Text('أسماء الواهبين'),
         backgroundColor: Colors.brown[600],
         foregroundColor: Colors.white,
         centerTitle: true,
@@ -194,7 +194,7 @@ class _SupplierManagementScreenState extends State<SupplierManagementScreen> {
                       controller: _addController,
                       focusNode: _addFocusNode,
                       decoration: const InputDecoration(
-                        labelText: 'إضافة مورد جديد',
+                        labelText: 'إضافة اسم جديد',
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -238,7 +238,7 @@ class _SupplierManagementScreenState extends State<SupplierManagementScreen> {
             ),
             Expanded(
               child: sortedEntries.isEmpty
-                  ? const Center(child: Text('لا يوجد موردين مسجلين.'))
+                  ? const Center(child: Text('لا يوجد واهبين مسجلين.'))
                   : ListView.builder(
                       itemCount: sortedEntries.length,
                       itemBuilder: (context, index) {

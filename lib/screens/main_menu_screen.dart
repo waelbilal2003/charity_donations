@@ -141,15 +141,15 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 Expanded(
                   child: Row(
                     children: [
-                      // ✅ العمود الأيمن (من الأعلى للأسفل: الزبائن، المبيعات، التفصيلات)
                       Expanded(
                         child: Column(
                           children: [
                             Expanded(
                               child: _buildMenuButton(
                                 context: context,
-                                text: 'الزبائن',
-                                icon: Icons.person_add_alt_1,
+                                text: 'اسماء الفقراء',
+                                icon: Icons
+                                    .people_outline_rounded, // أيقونة للأشخاص/المستحقين
                                 gradientColors: const [
                                   Color(0xFF0D9488),
                                   Color(0xFF0F766E)
@@ -170,8 +170,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                             Expanded(
                               child: _buildMenuButton(
                                 context: context,
-                                text: 'المبيعات',
-                                icon: Icons.sell_rounded,
+                                text: 'الصدقات',
+                                icon: Icons
+                                    .volunteer_activism_rounded, // أيقونة للصدقة/العطاء
                                 gradientColors: const [
                                   Color(0xFF15803D),
                                   Color(0xFF166534)
@@ -192,7 +193,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                               child: _buildMenuButton(
                                 context: context,
                                 text: 'التفصيلات',
-                                icon: Icons.tune_rounded,
+                                icon: Icons
+                                    .manage_search_rounded, // أيقونة للتفاصيل/التصفح
                                 gradientColors: const [
                                   Color(0xFF475569),
                                   Color(0xFF334155)
@@ -212,15 +214,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                         ),
                       ),
                       const SizedBox(width: 14),
-                      // ✅ العمود الأيسر (من الأعلى للأسفل: الموردين، المشتريات، الصندوق)
+// ✅ العمود الأيسر (من الأعلى للأسفل: الموردين، المشتريات، الصندوق)
                       Expanded(
                         child: Column(
                           children: [
                             Expanded(
                               child: _buildMenuButton(
                                 context: context,
-                                text: 'الموردين',
-                                icon: Icons.local_shipping_rounded,
+                                text: 'اسماء المتبرعين',
+                                icon: Icons
+                                    .handshake_rounded, // أيقونة للتبرع/التعاون
                                 gradientColors: const [
                                   Color(0xFF92400E),
                                   Color(0xFF78350F)
@@ -241,8 +244,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                             Expanded(
                               child: _buildMenuButton(
                                 context: context,
-                                text: 'المشتريات',
-                                icon: Icons.shopping_cart_rounded,
+                                text: 'الهبات',
+                                icon: Icons
+                                    .card_giftcard_rounded, // أيقونة للهبة/الهدية
                                 gradientColors: const [
                                   Color(0xFF1D4ED8),
                                   Color(0xFF1E40AF)

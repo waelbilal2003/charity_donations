@@ -38,7 +38,7 @@ class _BoxScreenState extends State<BoxScreen> {
 
   //  خدمة فهرس الزبائن
   final CustomerIndexService _customerIndexService = CustomerIndexService();
-  // خدمة فهرس الموردين
+  // خدمة فهرس الواهبين
   final SupplierIndexService _supplierIndexService = SupplierIndexService();
 
   List<String> _customerSuggestions = [];
@@ -60,7 +60,7 @@ class _BoxScreenState extends State<BoxScreen> {
   late TextEditingController totalPaidController;
 
   // قوائم الخيارات
-  final List<String> accountTypeOptions = ['زبون', 'مورد', 'مصروف'];
+  final List<String> accountTypeOptions = ['فقير', 'واهب', 'مصروف'];
 
   // متحكمات للتمرير
   final ScrollController _verticalScrollController = ScrollController();
@@ -88,7 +88,7 @@ class _BoxScreenState extends State<BoxScreen> {
   late ScrollController
       _horizontalSuggestionsController; // في initState قم بتعريفه: _horizontalSuggestionsController = ScrollController();
 
-  // ============ تحديث أرصدة الموردين والزبائن ============
+  // ============ تحديث أرصدة الواهبين والزبائن ============
   Map<String, double> customerBalanceChanges = {};
   Map<String, double> supplierBalanceChanges = {};
 
@@ -337,9 +337,9 @@ class _BoxScreenState extends State<BoxScreen> {
       _hasUnsavedChanges = true;
 
       // فقط تحديث الاقتراحات بناءً على نوع الحساب
-      if (accountTypeValues[rowIndex] == 'زبون') {
+      if (accountTypeValues[rowIndex] == 'فقير') {
         _updateCustomerSuggestions(rowIndex);
-      } else if (accountTypeValues[rowIndex] == 'مورد') {
+      } else if (accountTypeValues[rowIndex] == 'واهب') {
         _updateSupplierSuggestions(rowIndex);
       }
     });
@@ -736,7 +736,7 @@ class _BoxScreenState extends State<BoxScreen> {
 
     Widget cellContent;
 
-    // إذا كان نوع الحساب تم اختياره (زبون، مورد)
+    // إذا كان نوع الحساب تم اختياره (فقير، واهب)
     if (accountType.isNotEmpty) {
       cellContent = Container(
         padding: const EdgeInsets.all(1),
@@ -807,9 +807,9 @@ class _BoxScreenState extends State<BoxScreen> {
                 onChanged: (value) {
                   _hasUnsavedChanges = true;
                   // تفعيل الاقتراحات حسب النوع
-                  if (accountType == 'زبون') {
+                  if (accountType == 'فقير') {
                     _updateCustomerSuggestions(rowIndex);
-                  } else if (accountType == 'مورد') {
+                  } else if (accountType == 'واهب') {
                     _updateSupplierSuggestions(rowIndex);
                   }
                 },
@@ -932,9 +932,9 @@ class _BoxScreenState extends State<BoxScreen> {
 
   Color _getAccountTypeColor(String accountType) {
     switch (accountType) {
-      case 'زبون':
+      case 'فقير':
         return Colors.green;
-      case 'مورد':
+      case 'واهب':
         return Colors.blue;
       case 'مصروف':
         return Colors.red;
@@ -945,10 +945,10 @@ class _BoxScreenState extends State<BoxScreen> {
 
   String _getAccountHintText(String accountType) {
     switch (accountType) {
-      case 'زبون':
-        return 'اسم الزبون';
-      case 'مورد':
-        return 'اسم المورد';
+      case 'فقير':
+        return 'اسم الفقير';
+      case 'واهب':
+        return 'اسم الواهب';
       case 'مصروف':
         return 'نوع المصروف';
       default:
@@ -972,8 +972,8 @@ class _BoxScreenState extends State<BoxScreen> {
     } else if (colIndex == 2) {
       _showAccountTypeDialog(rowIndex);
     } else if (colIndex == 3) {
-      // 1. الأولوية القصوى: هل يوجد اقتراح زبون مطابق؟
-      if (accountTypeValues[rowIndex] == 'زبون' &&
+      // 1. الأولوية القصوى: هل يوجد اقتراح فقير مطابق؟
+      if (accountTypeValues[rowIndex] == 'فقير' &&
           _customerSuggestions.isNotEmpty) {
         _selectCustomerSuggestion(_customerSuggestions[0], rowIndex);
         // *** إضافة: الحفظ الفوري بعد اختيار الاقتراح ***
@@ -981,8 +981,8 @@ class _BoxScreenState extends State<BoxScreen> {
         return;
       }
 
-      // 2. الأولوية القصوى: هل يوجد اقتراح مورد مطابق؟
-      if (accountTypeValues[rowIndex] == 'مورد' &&
+      // 2. الأولوية القصوى: هل يوجد اقتراح واهب مطابق؟
+      if (accountTypeValues[rowIndex] == 'واهب' &&
           _supplierSuggestions.isNotEmpty) {
         _selectSupplierSuggestion(_supplierSuggestions[0], rowIndex);
         // *** إضافة: الحفظ الفوري بعد اختيار الاقتراح ***
@@ -1000,10 +1000,10 @@ class _BoxScreenState extends State<BoxScreen> {
       });
 
       if (value.trim().isNotEmpty && value.trim().length > 1) {
-        // لا يتم حفظ الأسماء الجديدة - فقط الزبائن والموردين المخزنين مسبقاً مقبولون
-        // if (accountTypeValues[rowIndex] == 'زبون') {
+        // لا يتم حفظ الأسماء الجديدة - فقط الزبائن والواهبين المخزنين مسبقاً مقبولون
+        // if (accountTypeValues[rowIndex] == 'فقير') {
         //   _saveCustomerToIndex(value);
-        // } else if (accountTypeValues[rowIndex] == 'مورد') {
+        // } else if (accountTypeValues[rowIndex] == 'واهب') {
         //   _saveSupplierToIndex(value);
         // }
       }
@@ -1336,7 +1336,7 @@ class _BoxScreenState extends State<BoxScreen> {
   Future<void> _saveCurrentRecord(
       {bool silent = false, bool reloadAfterSave = true}) async {
     if (_isSaving) return;
-
+    if (!mounted) return;
     setState(() => _isSaving = true);
 
     // 1. تجميع السجلات الحالية من الواجهة
@@ -1373,14 +1373,14 @@ class _BoxScreenState extends State<BoxScreen> {
           double oldReceived = double.tryParse(oldTrans.received) ?? 0;
           double oldPaid = double.tryParse(oldTrans.paid) ?? 0;
 
-          if (oldTrans.accountType == 'زبون') {
-            // معادلة الزبون: الرصيد يتأثر بـ (المدفوع له - المقبوض منه)
+          if (oldTrans.accountType == 'فقير') {
+            // معادلة الفقير: الرصيد يتأثر بـ (المدفوع له - المقبوض منه)
             // للإلغاء، نطرح هذا التأثير
             double effect = oldPaid - oldReceived;
             customerBalanceChanges[oldTrans.accountName] =
                 (customerBalanceChanges[oldTrans.accountName] ?? 0) - effect;
-          } else if (oldTrans.accountType == 'مورد') {
-            // معادلة المورد: الرصيد يتأثر بـ (المقبوض منه - المدفوع له)
+          } else if (oldTrans.accountType == 'واهب') {
+            // معادلة الواهب: الرصيد يتأثر بـ (المقبوض منه - المدفوع له)
             // للإلغاء، نطرح هذا التأثير
             double effect = oldReceived - oldPaid;
             supplierBalanceChanges[oldTrans.accountName] =
@@ -1397,11 +1397,11 @@ class _BoxScreenState extends State<BoxScreen> {
         double newReceived = double.tryParse(newTrans.received) ?? 0;
         double newPaid = double.tryParse(newTrans.paid) ?? 0;
 
-        if (newTrans.accountType == 'زبون') {
+        if (newTrans.accountType == 'فقير') {
           double effect = newPaid - newReceived;
           customerBalanceChanges[newTrans.accountName] =
               (customerBalanceChanges[newTrans.accountName] ?? 0) + effect;
-        } else if (newTrans.accountType == 'مورد') {
+        } else if (newTrans.accountType == 'واهب') {
           double effect = newReceived - newPaid;
           supplierBalanceChanges[newTrans.accountName] =
               (supplierBalanceChanges[newTrans.accountName] ?? 0) + effect;
@@ -1432,7 +1432,7 @@ class _BoxScreenState extends State<BoxScreen> {
     final success = await _storageService.saveBoxDocument(documentToSave);
 
     if (success) {
-      // تطبيق التغييرات الصافية على أرصدة الزبائن والموردين
+      // تطبيق التغييرات الصافية على أرصدة الزبائن والواهبين
       for (var entry in customerBalanceChanges.entries) {
         if (entry.value != 0) {
           await _customerIndexService.updateCustomerBalance(
@@ -1504,7 +1504,7 @@ class _BoxScreenState extends State<BoxScreen> {
   // تحديث اقتراحات الزبائن
   void _updateCustomerSuggestions(int rowIndex) async {
     final query = rowControllers[rowIndex][3].text;
-    if (query.length >= 1 && accountTypeValues[rowIndex] == 'زبون') {
+    if (query.length >= 1 && accountTypeValues[rowIndex] == 'فقير') {
       final suggestions =
           await getEnhancedSuggestions(_customerIndexService, query);
       setState(() {
@@ -1521,10 +1521,10 @@ class _BoxScreenState extends State<BoxScreen> {
     }
   }
 
-// تحديث اقتراحات الموردين
+// تحديث اقتراحات الواهبين
   void _updateSupplierSuggestions(int rowIndex) async {
     final query = rowControllers[rowIndex][3].text;
-    if (query.length >= 1 && accountTypeValues[rowIndex] == 'مورد') {
+    if (query.length >= 1 && accountTypeValues[rowIndex] == 'واهب') {
       final suggestions =
           await getEnhancedSuggestions(_supplierIndexService, query);
       setState(() {
@@ -1534,7 +1534,7 @@ class _BoxScreenState extends State<BoxScreen> {
             type: 'supplier', show: suggestions.isNotEmpty);
       });
     } else {
-      // إخفاء الاقتراحات إذا كان الحقل فارغاً أو نوع الحساب ليس مورد
+      // إخفاء الاقتراحات إذا كان الحقل فارغاً أو نوع الحساب ليس واهب
       setState(() {
         _supplierSuggestions = [];
         _activeSupplierRowIndex = null;
@@ -1542,7 +1542,7 @@ class _BoxScreenState extends State<BoxScreen> {
     }
   }
 
-  // اختيار اقتراح للزبون
+  // اختيار اقتراح للفقير
   void _selectCustomerSuggestion(String suggestion, int rowIndex) {
     setState(() {
       _customerSuggestions = [];
@@ -1570,7 +1570,7 @@ class _BoxScreenState extends State<BoxScreen> {
     });
   }
 
-  // اختيار اقتراح للمورد
+  // اختيار اقتراح للواهب
   void _selectSupplierSuggestion(String suggestion, int rowIndex) {
     setState(() {
       _supplierSuggestions = [];
@@ -1599,7 +1599,7 @@ class _BoxScreenState extends State<BoxScreen> {
   }
 
 /*
-  // حفظ الزبون في الفهرس - معطل: لا يُسمح بإضافة أسماء جديدة، فقط استقبال المخزن
+  // حفظ الفقير في الفهرس - معطل: لا يُسمح بإضافة أسماء جديدة، فقط استقبال المخزن
   void _saveCustomerToIndex(String customer) {
     // final trimmedCustomer = customer.trim();
     // if (trimmedCustomer.length > 1) {
@@ -1608,7 +1608,7 @@ class _BoxScreenState extends State<BoxScreen> {
   }
 
   */
-  // حفظ المورد في الفهرس - معطل: لا يُسمح بإضافة أسماء جديدة، فقط استقبال المخزن
+  // حفظ الواهب في الفهرس - معطل: لا يُسمح بإضافة أسماء جديدة، فقط استقبال المخزن
   /*
   void _saveSupplierToIndex(String supplier) {
     // final trimmedSupplier = supplier.trim();
@@ -1689,14 +1689,14 @@ class _BoxScreenState extends State<BoxScreen> {
       // جلب الرصيد الحقيقي مباشرة من الفهرس - بدون أي حسابات تراكمية
       double realBalance = 0;
 
-      if (type == 'زبون') {
+      if (type == 'فقير') {
         final customers = await _customerIndexService.getAllCustomersWithData();
         final customerData = customers.values.firstWhere(
           (c) => c.name.toLowerCase() == name.toLowerCase(),
           orElse: () => CustomerData(name: name, balance: 0.0, startDate: ''),
         );
         realBalance = customerData.balance;
-      } else if (type == 'مورد') {
+      } else if (type == 'واهب') {
         final supplierData = await _supplierIndexService.getSupplierData(name);
         realBalance = supplierData?.balance ?? 0.0;
       } else {
@@ -1706,11 +1706,11 @@ class _BoxScreenState extends State<BoxScreen> {
       // حساب الباقي بناءً على آخر عملية إدخال فقط + الرصيد الحقيقي
       double remaining = 0;
 
-      if (type == 'زبون') {
-        // معادلة الزبون: الرصيد الحقيقي - مقبوض (سدد) + مدفوع (دين جديد)
+      if (type == 'فقير') {
+        // معادلة الفقير: الرصيد الحقيقي - مقبوض (سدد) + مدفوع (دين جديد)
         remaining = realBalance - currentReceived + currentPaid;
-      } else if (type == 'مورد') {
-        // معادلة المورد: الرصيد الحقيقي + مقبوض (دين علينا) - مدفوع (سداد منا)
+      } else if (type == 'واهب') {
+        // معادلة الواهب: الرصيد الحقيقي + مقبوض (دين علينا) - مدفوع (سداد منا)
         remaining = realBalance + currentReceived - currentPaid;
       }
 

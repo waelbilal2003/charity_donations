@@ -99,7 +99,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            'لا يمكن حذف زبون رصيده غير صفر (${customer.balance.toStringAsFixed(2)})'),
+            'لا يمكن حذف فقير رصيده غير صفر (${customer.balance.toStringAsFixed(2)})'),
         backgroundColor: Colors.orange,
       ));
       return;
@@ -109,7 +109,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد الحذف'),
-        content: Text('هل أنت متأكد من حذف الزبون "${customer.name}"؟'),
+        content: Text('هل أنت متأكد من حذف الفقير "${customer.name}"؟'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -145,7 +145,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('أسماء الزبائن وأرصدتهم'),
+        title: const Text('أسماء المحتاجين وأرصدتهم'),
         backgroundColor: Colors.teal[600],
         foregroundColor: Colors.white,
         centerTitle: true,
@@ -194,7 +194,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
                       controller: _addController,
                       focusNode: _addFocusNode,
                       decoration: const InputDecoration(
-                        labelText: 'إضافة زبون جديد',
+                        labelText: 'إضافة اسم جديد',
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -238,7 +238,7 @@ class _CustomerManagementScreenState extends State<CustomerManagementScreen> {
             ),
             Expanded(
               child: sortedEntries.isEmpty
-                  ? const Center(child: Text('لا يوجد زبائن مسجلين.'))
+                  ? const Center(child: Text('لا يوجد محتاجين مسجلين.'))
                   : ListView.builder(
                       itemCount: sortedEntries.length,
                       itemBuilder: (context, index) {

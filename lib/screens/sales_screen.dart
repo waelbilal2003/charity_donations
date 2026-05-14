@@ -392,7 +392,7 @@ class _SalesScreenState extends State<SalesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        'المبيعات - ${widget.selectedDate}',
+                        'الصدقات - ${widget.selectedDate}',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
@@ -559,8 +559,8 @@ class _SalesScreenState extends State<SalesScreen> {
           decoration: BoxDecoration(color: Colors.grey[200]),
           children: [
             TableComponents.buildTableHeaderCell('ت'),
-            TableComponents.buildTableHeaderCell('قيمة الدين'),
-            TableComponents.buildTableHeaderCell('اسم الزبون'),
+            TableComponents.buildTableHeaderCell('قيمة الصدقة'),
+            TableComponents.buildTableHeaderCell('اسم الفقير'),
             TableComponents.buildTableHeaderCell('البيان'),
           ],
         ),

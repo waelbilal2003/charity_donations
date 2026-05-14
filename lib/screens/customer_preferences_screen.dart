@@ -74,11 +74,11 @@ class _CustomerPreferencesScreenState extends State<CustomerPreferencesScreen> {
         }
       }
 
-      // ② مدفوع من يومية الصندوق (نوع الحساب = زبون واسمه مطابق)
+      // ② مدفوع من يومية الصندوق (نوع الحساب = فقير واسمه مطابق)
       final boxDoc = await _boxService.loadBoxDocumentForDate(dateString);
       if (boxDoc != null) {
         for (var t in boxDoc.transactions) {
-          if (t.accountType == 'زبون' &&
+          if (t.accountType == 'فقير' &&
               t.accountName == widget.customer.name) {
             // المدفوع
             if (t.paid.isNotEmpty &&
@@ -417,7 +417,7 @@ class _CustomerPreferencesScreenState extends State<CustomerPreferencesScreen> {
 
       final displayList = List<Map<String, String>>.from(_visibleTransactions);
 
-      // الزبون: مبيعات + صندوق مدفوع = يُجمع | صندوق مقبوض = يُطرح
+      // الفقير: مبيعات + صندوق مدفوع = يُجمع | صندوق مقبوض = يُطرح
       final double totalTransactions = displayList.fold<double>(0.0, (sum, p) {
         final val = double.tryParse(p['value'] ?? '0') ?? 0;
         if (p['source'] == 'box_received') return sum - val;
@@ -456,7 +456,7 @@ class _CustomerPreferencesScreenState extends State<CustomerPreferencesScreen> {
                   children: [
                     pw.Center(
                       child: pw.Text(
-                        'تفاصيل الزبون: ${widget.customer.name}',
+                        'تفاصيل الفقير: ${widget.customer.name}',
                         style: pw.TextStyle(
                             fontSize: 16, fontWeight: pw.FontWeight.bold),
                       ),
@@ -583,12 +583,12 @@ class _CustomerPreferencesScreenState extends State<CustomerPreferencesScreen> {
       final output = await getTemporaryDirectory();
       final safeDate = widget.selectedDate.replaceAll('/', '-');
       final safeName = widget.customer.name.replaceAll(' ', '_');
-      final file = File("${output.path}/تفاصيل_زبون_${safeName}_$safeDate.pdf");
+      final file = File("${output.path}/تفاصيل_فقير_${safeName}_$safeDate.pdf");
 
       await file.writeAsBytes(await pdf.save());
       await Share.shareXFiles([XFile(file.path)],
           text:
-              'تفاصيل الزبون ${widget.customer.name} - ${widget.selectedDate}');
+              'تفاصيل الفقير ${widget.customer.name} - ${widget.selectedDate}');
     } catch (e) {
       debugPrint("PDF Error: $e");
       if (mounted) {
@@ -642,7 +642,7 @@ class _CustomerPreferencesScreenState extends State<CustomerPreferencesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // الزبون: مبيعات + صندوق مدفوع = يُجمع | صندوق مقبوض = يُطرح
+    // الفقير: مبيعات + صندوق مدفوع = يُجمع | صندوق مقبوض = يُطرح
     final double totalVisible =
         _visibleTransactions.fold<double>(0.0, (sum, p) {
       final val = double.tryParse(p['value'] ?? '0') ?? 0;
