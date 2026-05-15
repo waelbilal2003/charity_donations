@@ -214,26 +214,26 @@ class _BoxScreenState extends State<BoxScreen> {
       }
     }
 
-    // 2. جمع الصدقات (كانت مبيعات) من جميع التواريخ
+    // 2. جمع الصدقات (كانت مبيعات) → مدفوع
     final salesService = SalesStorageService();
     final salesDates = await salesService.getAllAvailableDates();
     for (var date in salesDates) {
       final salesDoc = await salesService.loadDocumentForDate(date);
       if (salesDoc != null) {
         for (var t in salesDoc.transactions) {
-          totalRec += double.tryParse(t.paymentValue) ?? 0;
+          totalPaid += double.tryParse(t.paymentValue) ?? 0;
         }
       }
     }
 
-    // 3. جمع الهبات (كانت مشتريات) من جميع التواريخ
+    // 3. جمع الهبات (كانت مشتريات) → مقبوض
     final purchasesService = PurchasesStorageService();
     final purchasesDates = await purchasesService.getAllAvailableDates();
     for (var date in purchasesDates) {
       final purchaseDoc = await purchasesService.loadDocumentForDate(date);
       if (purchaseDoc != null) {
         for (var t in purchaseDoc.transactions) {
-          totalPaid += double.tryParse(t.paymentValue) ?? 0;
+          totalRec += double.tryParse(t.paymentValue) ?? 0;
         }
       }
     }
@@ -283,8 +283,8 @@ class _BoxScreenState extends State<BoxScreen> {
           // [0]=رقم تسلسلي، [1]=مقبوض، [2]=مدفوع، [3]=الحساب، [4]=ملاحظات
           final controllers = [
             TextEditingController(text: (rowControllers.length + 1).toString()),
-            TextEditingController(text: t.paymentValue), // مقبوض
-            TextEditingController(text: ''), // مدفوع
+            TextEditingController(text: ''), // مقبوض
+            TextEditingController(text: t.paymentValue), // مدفوع
             TextEditingController(text: accountName), // الحساب
             TextEditingController(
                 text: t.notes.isNotEmpty ? t.notes : 'صدقات'), // ملاحظات
@@ -307,8 +307,8 @@ class _BoxScreenState extends State<BoxScreen> {
           // [0]=رقم تسلسلي، [1]=مقبوض، [2]=مدفوع، [3]=الحساب، [4]=ملاحظات
           final controllers = [
             TextEditingController(text: (rowControllers.length + 1).toString()),
-            TextEditingController(text: ''), // مقبوض
-            TextEditingController(text: t.paymentValue), // مدفوع
+            TextEditingController(text: t.paymentValue), // مقبوض
+            TextEditingController(text: ''), // مدفوع
             TextEditingController(text: accountName), // الحساب
             TextEditingController(
                 text: t.notes.isNotEmpty ? t.notes : 'هبات'), // ملاحظات
@@ -1544,10 +1544,14 @@ class _BoxScreenState extends State<BoxScreen> {
             double effect = newPaid - newReceived;
             customerBalanceChanges[newTrans.accountName] =
                 (customerBalanceChanges[newTrans.accountName] ?? 0) + effect;
+            // حفظ اسم الفقير في الفهرس
+            _saveCustomerToIndex(newTrans.accountName);
           } else if (newTrans.accountType == 'واهب') {
             double effect = newReceived - newPaid;
             supplierBalanceChanges[newTrans.accountName] =
                 (supplierBalanceChanges[newTrans.accountName] ?? 0) + effect;
+            // حفظ اسم الواهب في الفهرس
+            _saveSupplierToIndex(newTrans.accountName);
           }
         }
       }
@@ -1728,10 +1732,10 @@ class _BoxScreenState extends State<BoxScreen> {
     rowControllers[rowIndex][3].text = suggestion;
     _hasUnsavedChanges = true;
 
-    // لا يتم حفظ الاسم في الفهرس - فقط استقبال الاقتراحات المخزنة مسبقاً
-    // if (suggestion.trim().length > 1) {
-    //   _saveCustomerToIndex(suggestion);
-    // }
+    // حفظ الاسم في الفهرس عند الاختيار
+    if (suggestion.trim().length > 1) {
+      _saveCustomerToIndex(suggestion);
+    }
 
     // 2. تحديث شريط الرصيد فوراً بناءً على الاسم الكامل الجديد
     _fetchAndCalculateBalance(rowIndex);
@@ -1756,10 +1760,10 @@ class _BoxScreenState extends State<BoxScreen> {
     rowControllers[rowIndex][3].text = suggestion;
     _hasUnsavedChanges = true;
 
-    // لا يتم حفظ الاسم في الفهرس - فقط استقبال الاقتراحات المخزنة مسبقاً
-    // if (suggestion.trim().length > 1) {
-    //   _saveSupplierToIndex(suggestion);
-    // }
+    // حفظ الاسم في الفهرس عند الاختيار
+    if (suggestion.trim().length > 1) {
+      _saveSupplierToIndex(suggestion);
+    }
 
     // 2. تحديث شريط الرصيد فوراً بناءً على الاسم الكامل الجديد
     _fetchAndCalculateBalance(rowIndex);
@@ -1771,25 +1775,22 @@ class _BoxScreenState extends State<BoxScreen> {
     });
   }
 
-/*
-  // حفظ الفقير في الفهرس - معطل: لا يُسمح بإضافة أسماء جديدة، فقط استقبال المخزن
+  // حفظ الفقير في الفهرس
   void _saveCustomerToIndex(String customer) {
-    // final trimmedCustomer = customer.trim();
-    // if (trimmedCustomer.length > 1) {
-    //   _customerIndexService.saveCustomer(trimmedCustomer);
-    // }
+    final trimmedCustomer = customer.trim();
+    if (trimmedCustomer.length > 1) {
+      _customerIndexService.saveCustomer(trimmedCustomer);
+    }
   }
 
-  */
-  // حفظ الواهب في الفهرس - معطل: لا يُسمح بإضافة أسماء جديدة، فقط استقبال المخزن
-  /*
+  // حفظ الواهب في الفهرس
   void _saveSupplierToIndex(String supplier) {
-    // final trimmedSupplier = supplier.trim();
-    // if (trimmedSupplier.length > 1) {
-    //   _supplierIndexService.saveSupplier(trimmedSupplier);
-    // }
+    final trimmedSupplier = supplier.trim();
+    if (trimmedSupplier.length > 1) {
+      _supplierIndexService.saveSupplier(trimmedSupplier);
+    }
   }
-    */
+
   void _toggleFullScreenSuggestions(
       {required String type, required bool show}) {
     if (mounted) {

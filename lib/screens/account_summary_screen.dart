@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/app_settings_service.dart';
-import '../services/customer_index_service.dart';
-import '../services/supplier_index_service.dart';
 import '../services/sales_storage_service.dart';
 import '../services/purchases_storage_service.dart';
 import '../services/box_storage_service.dart';
@@ -15,8 +12,6 @@ class AccountSummaryScreen extends StatefulWidget {
 }
 
 class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
-  final CustomerIndexService _customerIndexService = CustomerIndexService();
-  final SupplierIndexService _supplierIndexService = SupplierIndexService();
   final SalesStorageService _salesStorageService = SalesStorageService();
   final PurchasesStorageService _purchasesStorageService =
       PurchasesStorageService();
