@@ -4,7 +4,9 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import '../models/payment_model.dart';
+import '../models/box_model.dart';
 import '../services/sales_storage_service.dart';
+import '../services/box_storage_service.dart';
 import '../services/customer_index_service.dart';
 import '../widgets/table_components.dart' as TableComponents;
 import '../widgets/suggestions_banner.dart';
@@ -25,6 +27,7 @@ class SalesScreen extends StatefulWidget {
 
 class _SalesScreenState extends State<SalesScreen> {
   final SalesStorageService _storageService = SalesStorageService();
+  final BoxStorageService _boxStorageService = BoxStorageService();
   final CustomerIndexService _customerIndexService = CustomerIndexService();
 
   List<List<TextEditingController>> rowControllers = [];
@@ -268,11 +271,22 @@ class _SalesScreenState extends State<SalesScreen> {
   void _selectCustomerSuggestion(String name, int rowIndex) {
     rowControllers[rowIndex][2].text = name;
     _hideSuggestions();
+    // حفظ الفقير في الفهرس عند اختياره
+    if (name.trim().length > 1) {
+      _saveCustomerToIndex(name);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (rowIndex < rowFocusNodes.length) {
         FocusScope.of(context).requestFocus(rowFocusNodes[rowIndex][3]);
       }
     });
+  }
+
+  void _saveCustomerToIndex(String customer) {
+    final trimmedCustomer = customer.trim();
+    if (trimmedCustomer.length > 1) {
+      _customerIndexService.saveCustomer(trimmedCustomer);
+    }
   }
 
   Future<void> _saveCurrentRecord({bool silent = false}) async {
@@ -331,6 +345,34 @@ class _SalesScreenState extends State<SalesScreen> {
 
     await _storageService.saveDocument(documentToSave);
 
+    // حفظ في يومية الصندوق (الصدقات)
+    final boxTransactions = newTransactions
+        .map((t) => BoxTransaction(
+              serialNumber: t.serialNumber,
+              received: '',
+              paid: t.paymentValue,
+              accountType: 'فقير',
+              accountName: t.workerName,
+              notes: t.notes.isNotEmpty ? t.notes : 'صدقات',
+              sellerName: '',
+            ))
+        .toList();
+
+    final boxDocumentToSave = BoxDocument(
+      recordNumber: '1',
+      date: widget.selectedDate,
+      sellerName: 'System',
+      storeName: '',
+      dayName: '',
+      transactions: boxTransactions,
+      totals: {
+        'totalReceived': '0.00',
+        'totalPaid': newTotal.toStringAsFixed(2),
+      },
+    );
+
+    await _boxStorageService.saveBoxDocument(boxDocumentToSave);
+
     if (mounted) {
       setState(() {
         _isSaving = false;
@@ -354,6 +396,10 @@ class _SalesScreenState extends State<SalesScreen> {
       if (_customerSuggestions.isNotEmpty) {
         _selectCustomerSuggestion(_customerSuggestions.first, rowIndex);
       } else {
+        // حفظ اسم الفقير في الفهرس عند ضغط Enter
+        if (value.trim().length > 1) {
+          _saveCustomerToIndex(value);
+        }
         FocusScope.of(context).requestFocus(rowFocusNodes[rowIndex][3]);
       }
     } else if (colIndex == 3) {
