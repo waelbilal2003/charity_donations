@@ -34,9 +34,7 @@ class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
       double sales = 0;
       double purchases = 0;
       double expensesTotalPaid = 0, expensesTotalReceived = 0;
-      double boxReceived = 0, boxPaid = 0;
 
-      // جلب بيانات الصندوق والمصروف
       final allBoxDates =
           await _boxStorageService.getAvailableDatesWithNumbers();
 
@@ -44,28 +42,26 @@ class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
         final doc =
             await _boxStorageService.loadBoxDocumentForDate(dateInfo['date']!);
         if (doc != null) {
-          boxReceived +=
-              double.tryParse(doc.totals['totalReceived'] ?? '0') ?? 0;
-          boxPaid += double.tryParse(doc.totals['totalPaid'] ?? '0') ?? 0;
-
-          // ✅ تصحيح: جلب المصروف من جميع المعاملات وليس فقط نوع 'مصروف'
           for (var trans in doc.transactions) {
             if (trans.accountType == 'مصروف') {
               expensesTotalPaid += double.tryParse(trans.paid) ?? 0;
               expensesTotalReceived += double.tryParse(trans.received) ?? 0;
+            } else if (trans.accountType == 'فقير') {
+              // صفوف الصندوق اليدوية للفقراء → مدفوع = صدقة
+              sales += double.tryParse(trans.paid) ?? 0;
+              sales -= double.tryParse(trans.received) ?? 0;
+            } else if (trans.accountType == 'واهب') {
+              // صفوف الصندوق اليدوية للواهبين → مقبوض = هبة
+              purchases += double.tryParse(trans.received) ?? 0;
+              purchases -= double.tryParse(trans.paid) ?? 0;
             }
           }
         }
       }
 
-      // المصروف الكلي = مجموع المدفوع للمصروفات - مجموع المقبوض من المصروفات
       final double expenses = expensesTotalPaid - expensesTotalReceived;
 
-      // طباعة للتحقق من القيم
-      debugPrint(
-          'Expenses Paid: $expensesTotalPaid, Received: $expensesTotalReceived, Total: $expenses');
-
-      // جلب الصدقات
+      // جلب الصدقات من شاشة الصدقات
       final salesAllDates = await _salesStorageService.getAllAvailableDates();
       for (var date in salesAllDates) {
         final doc = await _salesStorageService.loadDocumentForDate(date);
@@ -74,7 +70,7 @@ class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
         }
       }
 
-      // جلب الهبات
+      // جلب الهبات من شاشة الهبات
       final purchasesAllDates =
           await _purchasesStorageService.getAllAvailableDates();
       for (var date in purchasesAllDates) {
@@ -84,11 +80,8 @@ class _AccountSummaryScreenState extends State<AccountSummaryScreen> {
         }
       }
 
-      // ✅ طباعة جميع القيم للتحقق
       debugPrint('Sales: $sales, Purchases: $purchases, Expenses: $expenses');
-      debugPrint('Box Received: $boxReceived, Box Paid: $boxPaid');
 
-      // حساب رصيد الصندوق = الهبات - الصدقات - المصروف
       final double boxBalance = purchases - sales - expenses;
 
       debugPrint('Box Balance: $boxBalance');
