@@ -58,7 +58,7 @@ class _SupplierPreferencesScreenState extends State<SupplierPreferencesScreen> {
       final dateString =
           '${currentDate.year}/${currentDate.month}/${currentDate.day}';
 
-      // ① مسحوبات من يومية المشتريات
+      // ① مسحوبات من يومية الهبات
       final doc = await _purchasesService.loadDocumentForDate(dateString);
       if (doc != null) {
         for (var t in doc.transactions) {
@@ -425,7 +425,7 @@ class _SupplierPreferencesScreenState extends State<SupplierPreferencesScreen> {
 
       final displayList = List<Map<String, String>>.from(_visibleTransactions);
 
-      // الواهب: مشتريات + صندوق مقبوض = يُجمع | صندوق مدفوع = يُطرح
+      // الواهب: هبات + صندوق مقبوض = يُجمع | صندوق مدفوع = يُطرح
       final double totalTransactions = displayList.fold<double>(0.0, (sum, p) {
         final val = double.tryParse(p['value'] ?? '0') ?? 0;
         if (p['source'] == 'box_paid') return sum - val;
@@ -557,7 +557,7 @@ class _SupplierPreferencesScreenState extends State<SupplierPreferencesScreen> {
                                 ? 'مقبوض'
                                 : p['source'] == 'box_paid'
                                     ? 'مدفوع'
-                                    : 'مشتريات';
+                                    : 'هبات';
                             return pw.TableRow(
                               decoration: pw.BoxDecoration(color: color),
                               children: [
@@ -650,7 +650,7 @@ class _SupplierPreferencesScreenState extends State<SupplierPreferencesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // الواهب: مشتريات + صندوق مقبوض = يُجمع | صندوق مدفوع = يُطرح
+    // الواهب: هبات + صندوق مقبوض = يُجمع | صندوق مدفوع = يُطرح
     final double totalVisible =
         _visibleTransactions.fold<double>(0.0, (sum, p) {
       final val = double.tryParse(p['value'] ?? '0') ?? 0;
@@ -911,7 +911,7 @@ class _SupplierPreferencesScreenState extends State<SupplierPreferencesScreen> {
                                                   ? 'مقبوض'
                                                   : isBox
                                                       ? 'مدفوع'
-                                                      : 'مشتريات',
+                                                      : 'هبات',
                                               style: TextStyle(
                                                   fontSize: 10,
                                                   color: isBoxReceived
